@@ -1,6 +1,7 @@
 --[[
 	Name: Noospheric Mercy
 	Author: Wobin
+	URL: https://github.com/Wobin/NoosphericMercy
 	Date: 26/06/2026
 	Version: 1.0.0
 ]]--

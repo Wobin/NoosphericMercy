@@ -41,6 +41,13 @@ local _light = {}
 local _beam = {}
 local _marker = {}
 
+local DEFAULT_OUTLINE_PRIORITY = 5
+local _guess_profile
+
+local function outline_priority()
+	return Settings.get("outline_priority") or DEFAULT_OUTLINE_PRIORITY
+end
+
 local function outline_system()
 	return Managers.state.extension and Managers.state.extension:system("outline_system")
 end
@@ -152,8 +159,8 @@ end
 
 function Visuals.register_outline()
 	mod:hook_require("scripts/settings/outline/outline_settings", function(settings)
-		settings.PlayerUnitOutlineExtension[Phrases.OUTLINE_GUESS] = {
-			priority = 1,
+		_guess_profile = {
+			priority = outline_priority(),
 			color = { 1, 0.5, 0 },
 			material_layers = {
 				"player_outline_knocked_down",
@@ -163,19 +170,74 @@ function Visuals.register_outline()
 				return HEALTH_ALIVE[unit]
 			end,
 		}
+		settings.PlayerUnitOutlineExtension[Phrases.OUTLINE_GUESS] = _guess_profile
 	end)
+end
+
+function Visuals.refresh_outline_priority()
+	if _guess_profile then
+		_guess_profile.priority = outline_priority()
+	end
 end
 
 function Visuals.register_marker()
 	Marker.register()
 end
 
+local function destroy_go(go_id, osys)
+	local cog = _cog[go_id]
+
+	if cog then
+		destroy_cog_cone(cog.world, cog.ids)
+		_cog[go_id] = nil
+	end
+
+	local ol = _outline[go_id]
+
+	if ol then
+		osys = osys or outline_system()
+
+		if osys and ol.ally_unit and ALIVE[ol.ally_unit] then
+			osys:remove_outline(ol.ally_unit, ol.profile)
+		end
+
+		_outline[go_id] = nil
+	end
+
+	local lt = _light[go_id]
+
+	if lt then
+		destroy_light(lt)
+		_light[go_id] = nil
+	end
+
+	local bm = _beam[go_id]
+
+	if bm then
+		if bm.world and bm.id then
+			World.destroy_particles(bm.world, bm.id)
+		end
+
+		_beam[go_id] = nil
+	end
+
+	local mk = _marker[go_id]
+
+	if mk then
+		if mk.id then
+			Managers.event:trigger("remove_world_marker", mk.id)
+		end
+
+		_marker[go_id] = nil
+	end
+end
+
 function Visuals.start(go_id)
-	_cog[go_id] = nil
-	_outline[go_id] = nil
-	_light[go_id] = nil
-	_beam[go_id] = nil
-	_marker[go_id] = nil
+	destroy_go(go_id)
+end
+
+function Visuals.clear(go_id)
+	destroy_go(go_id)
 end
 
 function Visuals.apply(go_id, ally_unit, ground_position, confidence)
@@ -423,40 +485,17 @@ function Visuals.reset()
 end
 
 function Visuals.cleanup_all()
-	for go_id, cog in pairs(_cog) do
-		destroy_cog_cone(cog.world, cog.ids)
-		_cog[go_id] = nil
-	end
-
 	local osys = outline_system()
+	local seen = {}
 
-	for go_id, ol in pairs(_outline) do
-		if osys and ol.ally_unit and ALIVE[ol.ally_unit] then
-			osys:remove_outline(ol.ally_unit, ol.profile)
-		end
+	for go_id in pairs(_cog) do seen[go_id] = true end
+	for go_id in pairs(_outline) do seen[go_id] = true end
+	for go_id in pairs(_light) do seen[go_id] = true end
+	for go_id in pairs(_beam) do seen[go_id] = true end
+	for go_id in pairs(_marker) do seen[go_id] = true end
 
-		_outline[go_id] = nil
-	end
-
-	for go_id, lt in pairs(_light) do
-		destroy_light(lt)
-		_light[go_id] = nil
-	end
-
-	for go_id, bm in pairs(_beam) do
-		if bm.world and bm.id then
-			World.destroy_particles(bm.world, bm.id)
-		end
-
-		_beam[go_id] = nil
-	end
-
-	for go_id, mk in pairs(_marker) do
-		if mk.id then
-			Managers.event:trigger("remove_world_marker", mk.id)
-		end
-
-		_marker[go_id] = nil
+	for go_id in pairs(seen) do
+		destroy_go(go_id, osys)
 	end
 end
 

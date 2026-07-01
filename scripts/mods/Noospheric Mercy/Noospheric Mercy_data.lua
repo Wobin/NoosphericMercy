@@ -22,6 +22,13 @@ return {
 				default_value = true,
 			},
 			{
+				setting_id = "outline_priority",
+				type = "numeric",
+				default_value = 5,
+				range = { 1, 10 },
+				decimals_number = 0,
+			},
+			{
 				setting_id = "verbose_logging",
 				type = "checkbox",
 				default_value = true,

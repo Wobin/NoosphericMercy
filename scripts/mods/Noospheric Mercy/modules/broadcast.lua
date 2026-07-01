@@ -40,7 +40,7 @@ local function pick_channel()
 end
 
 local function ally_name_and_archetype(ally_unit)
-	local player_unit_spawn = Managers.state.player_unit_spawn
+	local player_unit_spawn = Managers.state and Managers.state.player_unit_spawn
 	local player = player_unit_spawn and player_unit_spawn:owner(ally_unit)
 
 	if not player then

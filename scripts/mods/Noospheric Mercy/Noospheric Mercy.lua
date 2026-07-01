@@ -2,12 +2,12 @@
 	Name: Noospheric Mercy
 	Author: Wobin
 	URL: https://github.com/Wobin/NoosphericMercy
-	Date: 26/06/2026
-	Version: 1.0.0
+	Date: 01/07/2026
+	Version: 1.1.0
 ]]--
 
 local mod = get_mod("Noospheric Mercy")
-mod.version = "1.0.0"
+mod.version = "1.1.0"
 
 local Tracker = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/tracker")
 local TargetResolve = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/target_resolve")
@@ -95,7 +95,8 @@ Tracker.on_refresh = function(go_id, skull_unit, dt, t)
 	if not ally then
 		if _refresh_log[go_id] ~= "none" then
 			_refresh_log[go_id] = "none"
-			Log.write("RESOLVE skull go_id=%s -> no target (someone down but unresolved)", tostring(go_id))
+			Log.write("RESOLVE skull go_id=%s -> no target (target recovered or unresolved)", tostring(go_id))
+			Visuals.clear(go_id)
 		end
 
 		return
@@ -182,6 +183,7 @@ end
 
 mod.on_setting_changed = function(setting_id)
 	Settings.refresh()
+	Visuals.refresh_outline_priority()
 end
 
 mod.on_unload = function()

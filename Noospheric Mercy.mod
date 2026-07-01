@@ -8,6 +8,6 @@ return {
 			mod_localization = "Noospheric Mercy/scripts/mods/Noospheric Mercy/Noospheric Mercy_localization",
 		})
 	end,
-	version = "1.0.0",
+	version = "1.1.0",
 	packages = {},
 }

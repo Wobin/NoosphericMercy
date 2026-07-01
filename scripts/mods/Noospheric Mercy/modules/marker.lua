@@ -4,6 +4,8 @@ local Phrases = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/mo
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
 
+local math_floor = math.floor
+
 local Marker = {}
 
 Marker.TYPE = "noospheric_mercy_rescue"
@@ -124,8 +126,12 @@ template.update_function = function(parent, ui_renderer, widget, marker, templat
 	end
 
 	local distance = content.distance
+	local meters = (distance and distance > 1) and math_floor(distance) or nil
 
-	content.text = (distance and distance > 1) and (tostring(math.floor(distance)) .. "m") or ""
+	if meters ~= marker._nm_last_m then
+		marker._nm_last_m = meters
+		content.text = meters and (meters .. "m") or ""
+	end
 
 	return false
 end

@@ -110,18 +110,28 @@ function TargetResolve.any_needs_help()
 	return false
 end
 
+local _cands = {}
+
 local function disabled_players()
-	local out = {}
+	table.clear(_cands)
 
 	for _, player in pairs(Managers.player:players()) do
 		local unit = player.player_unit
 
 		if unit and ALIVE[unit] and requires_help(unit) then
-			out[#out + 1] = unit
+			_cands[#_cands + 1] = unit
 		end
 	end
 
-	return out
+	return _cands
+end
+
+local function store_pos(st, pos)
+	if st.prev_pos then
+		st.prev_pos:store(pos)
+	else
+		st.prev_pos = Vector3Box(pos)
+	end
 end
 
 local function infer(skull_unit)
@@ -145,7 +155,7 @@ local function infer(skull_unit)
 
 	if st.locked and ALIVE[st.locked] and requires_help(st.locked) then
 		if skull_pos then
-			st.prev_pos = Vector3Box(skull_pos)
+			store_pos(st, skull_pos)
 		end
 
 		return st.locked, Phrases.CONFIDENCE_CERTAIN, true
@@ -162,7 +172,7 @@ local function infer(skull_unit)
 		end
 
 		if skull_pos then
-			st.prev_pos = Vector3Box(skull_pos)
+			store_pos(st, skull_pos)
 		end
 
 		return only, Phrases.CONFIDENCE_CERTAIN, st.locked ~= nil
@@ -218,7 +228,7 @@ local function infer(skull_unit)
 	end
 
 	if skull_pos then
-		st.prev_pos = Vector3Box(skull_pos)
+		store_pos(st, skull_pos)
 	end
 
 	if st.locked then
@@ -267,12 +277,16 @@ function TargetResolve.clear(skull_unit)
 
 	_exact[skull_unit] = nil
 	_infer[skull_unit] = nil
+
+	if _state.pending and not (ALIVE[_state.pending] and requires_help(_state.pending)) then
+		_state.pending = nil
+	end
 end
 
 function TargetResolve.resolve(go_id, skull_unit, dt)
 	local ally = _exact[skull_unit]
 
-	if ally and ALIVE[ally] then
+	if ally and ALIVE[ally] and requires_help(ally) then
 		return ally, Phrases.CONFIDENCE_CERTAIN, true, "exact"
 	end
 

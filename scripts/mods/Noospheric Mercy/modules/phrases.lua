@@ -99,13 +99,13 @@ function Phrases.maybe_nickname(archetype_name)
 	return pool[math_random(#pool)]
 end
 
-function Phrases.pick_phrase(seed_int)
-	return RITES[(seed_int % #RITES) + 1]
+function Phrases.pick_phrase()
+	return RITES[math_random(#RITES)]
 end
 
 function Phrases.build_message(target_name, archetype_name)
 	local shown = Phrases.color_name(target_name, archetype_name)
-	local phrase = Phrases.pick_phrase(#target_name)
+	local phrase = Phrases.pick_phrase()
 	local nick = Phrases.maybe_nickname(archetype_name)
 
 	if nick then

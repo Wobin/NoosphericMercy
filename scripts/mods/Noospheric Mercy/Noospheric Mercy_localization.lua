@@ -14,6 +14,12 @@ return {
 	rescue_marker_enabled = {
 		en = "Show a marker over the rescue target",
 	},
+	outline_priority = {
+		en = "Ally outline priority (lower wins)",
+	},
+	outline_priority_description = {
+		en = "Render priority of the rescue outline. Lower numbers draw over higher ones; the game's own outlines use 1-4, so 5 keeps the rescue outline below them.",
+	},
 	verbose_logging = {
 		en = "Write a detailed trace to the log file (for debugging)",
 	},

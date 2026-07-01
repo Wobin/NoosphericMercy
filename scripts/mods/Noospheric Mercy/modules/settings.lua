@@ -6,6 +6,7 @@ local KEYS = {
 	"broadcast_enabled",
 	"show_others",
 	"rescue_marker_enabled",
+	"outline_priority",
 	"verbose_logging",
 }
 

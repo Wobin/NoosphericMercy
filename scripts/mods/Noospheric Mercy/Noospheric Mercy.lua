@@ -3,11 +3,11 @@
 	Author: Wobin
 	URL: https://github.com/Wobin/NoosphericMercy
 	Date: 01/07/2026
-	Version: 1.1.0
+	Version: 1.1.1
 ]]--
 
 local mod = get_mod("Noospheric Mercy")
-mod.version = "1.1.0"
+mod.version = "1.1.1"
 
 local Tracker = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/tracker")
 local TargetResolve = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/target_resolve")

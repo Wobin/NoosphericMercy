@@ -31,7 +31,7 @@ return {
 			{
 				setting_id = "verbose_logging",
 				type = "checkbox",
-				default_value = true,
+				default_value = false,
 			},
 		},
 	},

@@ -302,20 +302,25 @@ function Visuals.apply(go_id, ally_unit, ground_position, confidence)
 		if not mk then
 			local entry = { anchor_unit = ally_unit, confidence = confidence, data = { color = Marker.color_for(confidence) } }
 			_marker[go_id] = entry
-			local ok = pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
+			Managers.event:trigger("add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
 				entry.id = id
 			end, entry.data)
-			Log.write(ok and "MARKER added (confidence=%s)" or "MARKER add FAILED (template not registered?)", tostring(confidence))
+
+			if entry.id then
+				Log.write("MARKER added (confidence=%s)", tostring(confidence))
+			else
+				Log.write("MARKER add FAILED (no id returned, template unresolved?)")
+			end
 		elseif mk.anchor_unit ~= ally_unit then
 			if mk.id then
-				pcall(Managers.event.trigger, Managers.event, "remove_world_marker", mk.id)
+				Managers.event:trigger("remove_world_marker", mk.id)
 			end
 
 			mk.id = nil
 			mk.anchor_unit = ally_unit
 			mk.confidence = confidence
 			mk.data.color = Marker.color_for(confidence)
-			pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
+			Managers.event:trigger("add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
 				mk.id = id
 			end, mk.data)
 			Log.write("MARKER moved (retarget)")
@@ -479,7 +484,11 @@ function Visuals.reset()
 		_beam[go_id] = nil
 	end
 
-	for go_id in pairs(_marker) do
+	for go_id, mk in pairs(_marker) do
+		if mk.id and Managers.event then
+			Managers.event:trigger("remove_world_marker", mk.id)
+		end
+
 		_marker[go_id] = nil
 	end
 end

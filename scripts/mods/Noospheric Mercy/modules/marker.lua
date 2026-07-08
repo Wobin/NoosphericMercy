@@ -142,6 +142,49 @@ function Marker.register()
 			self._marker_templates[Marker.TYPE] = template
 		end
 	end)
+
+	mod:hook("HudElementWorldMarkers", "_template_by_type", function(func, self, marker_type, clone)
+		if marker_type == Marker.TYPE and self._marker_templates and not self._marker_templates[Marker.TYPE] then
+			self._marker_templates[Marker.TYPE] = template
+		end
+
+		return func(self, marker_type, clone)
+	end)
+
+	mod:hook("HudElementWorldMarkers", "_calculate_markers", function(func, self, ...)
+		local by_type = self._markers_by_type and self._markers_by_type[Marker.TYPE]
+
+		if by_type then
+			local markers = self._markers
+			local markers_by_id = self._markers_by_id
+
+			for i = #by_type, 1, -1 do
+				local marker = by_type[i]
+
+				if marker and marker.widget == nil then
+					local id = marker.id
+
+					table.remove(by_type, i)
+
+					if markers_by_id then
+						markers_by_id[id] = nil
+					end
+
+					if markers then
+						for j = #markers, 1, -1 do
+							if markers[j].id == id then
+								table.remove(markers, j)
+
+								break
+							end
+						end
+					end
+				end
+			end
+		end
+
+		return func(self, ...)
+	end)
 end
 
 return Marker

@@ -3,15 +3,16 @@
 	Author: Wobin
 	URL: https://github.com/Wobin/NoosphericMercy
 	Date: 27/07/2026
-	Version: 2.1.1
+	Version: 2.2.0
 ]]--
 
 local mod = get_mod("Noospheric Mercy")
-mod.version = "2.1.1"
+mod.version = "2.2.0"
 
 local Tracker = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/tracker")
 local TargetResolve = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/target_resolve")
 local HackTarget = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/hack_target")
+local HackArm = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/hack_arm")
 local Visuals = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/visuals")
 local Broadcast = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/broadcast")
 local ChatListen = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/chat_listen")
@@ -91,6 +92,7 @@ end)
 
 local _refresh_log = {}
 local _game_session = nil
+local _hack_update_notified = false
 
 local HACK_NODE = "targeting_rotation_node"
 
@@ -170,6 +172,7 @@ mod.update = function(dt)
 		Tracker.reset()
 		Visuals.reset()
 		HackTarget.reset()
+		HackArm.reset()
 
 		for skull in pairs(_broadcast_done) do
 			_broadcast_done[skull] = nil
@@ -200,12 +203,21 @@ mod.update = function(dt)
 	_game_session = game_session
 	_scan_accum = _scan_accum + dt
 
+	if HackArm.is_broken() and not _hack_update_notified and Managers.event then
+		_hack_update_notified = true
+		Managers.event:trigger("event_add_notification_message", "alert",
+			{ text = "Noospheric Mercy: a game update changed the hacking-detection API. Running in fallback mode - please update the mod." })
+	end
+
 	if _scan_accum >= SCAN_INTERVAL then
 		local elapsed = _scan_accum
 		_scan_accum = 0
 
 		TargetResolve.log_down_transitions()
-		Tracker.update(elapsed, t, game_session)
+
+		if HackArm.is_broken() or TargetResolve.any_needs_help() or HackArm.is_active() or next(Tracker.active) then
+			Tracker.update(elapsed, t, game_session)
+		end
 	end
 
 	Visuals.update(t)
@@ -217,6 +229,7 @@ mod.on_all_mods_loaded = function()
 	Visuals.register_outline()
 	Visuals.register_marker()
 	register_inject_hook()
+	HackArm.register()
 end
 
 mod.on_setting_changed = function(setting_id)

@@ -4,8 +4,10 @@ local Settings = {}
 
 local KEYS = {
 	"broadcast_enabled",
+	"broadcast_only_when_multiple",
 	"show_others",
 	"rescue_marker_enabled",
+	"hack_marker_enabled",
 	"outline_priority",
 	"verbose_logging",
 }

@@ -28,12 +28,27 @@ local USE_MARKER = true
 
 local BEAM_PARTICLE = "content/fx/particles/abilities/cryptic/servoskull_empowered"
 
+local USE_HACK_LIGHT = true
+local HACK_PARTICLE = "content/fx/particles/abilities/cryptic/precision_stance_target_effect"
+local HACK_LIGHT_COLOR = { 0.2, 0.6, 1.0 }
+
+local HACK_TUNING = {
+	height = 5,
+	intensity = 8,
+	volumetric = 5,
+	falloff_end = 6,
+	spot_end_deg = 18,
+	particle_height = 1.2,
+}
+
 local CONE_LEVELS = 1
 local CONE_SPACING = 0.7
 local CONE_BASE_SCALE = 1.0
 local CONE_TOP_SCALE = 0.2
 
 local Visuals = {}
+
+Visuals.HACK_TUNING = HACK_TUNING
 
 local _cog = {}
 local _outline = {}
@@ -113,17 +128,18 @@ local function light_color_for(confidence)
 	return LIGHT_COLOR_CERTAIN
 end
 
-local function light_position(ground_position)
-	return ground_position + Vector3.up() * LIGHT_HEIGHT
+local function light_position(ground_position, height)
+	return ground_position + Vector3.up() * (height or LIGHT_HEIGHT)
 end
 
-local function spawn_light(world, ground_position, color)
+local function spawn_light(world, ground_position, color, tuning)
 	if not LIGHT_SUPPORT or not world then
 		return nil
 	end
 
+	local height = tuning and tuning.height or LIGHT_HEIGHT
 	local rotation = Quaternion.look(-Vector3.up(), Vector3.forward())
-	local ok, unit = pcall(World.spawn_unit_ex, world, Phrases.LIGHT_UNIT, nil, light_position(ground_position), rotation)
+	local ok, unit = pcall(World.spawn_unit_ex, world, Phrases.LIGHT_UNIT, nil, light_position(ground_position, height), rotation)
 
 	if not ok or not unit then
 		Log.write("LIGHT spawn FAILED (ok=%s) for unit %s", tostring(ok), Phrases.LIGHT_UNIT)
@@ -139,16 +155,16 @@ local function spawn_light(world, ground_position, color)
 		Light.set_enabled(light, true)
 		Light.set_casts_shadows(light, false)
 		Light.set_spot_reflector(light, true)
-		Light.set_intensity(light, LIGHT_INTENSITY)
+		Light.set_intensity(light, tuning and tuning.intensity or LIGHT_INTENSITY)
 		Light.set_spot_angle_start(light, LIGHT_SPOT_START)
-		Light.set_spot_angle_end(light, LIGHT_SPOT_END)
+		Light.set_spot_angle_end(light, tuning and tuning.spot_end_deg and (tuning.spot_end_deg / 180 * math_pi) or LIGHT_SPOT_END)
 		Light.set_falloff_start(light, LIGHT_FALLOFF_START)
-		Light.set_falloff_end(light, LIGHT_FALLOFF_END)
-		Light.set_volumetric_intensity(light, LIGHT_VOLUMETRIC)
+		Light.set_falloff_end(light, tuning and tuning.falloff_end or LIGHT_FALLOFF_END)
+		Light.set_volumetric_intensity(light, tuning and tuning.volumetric or LIGHT_VOLUMETRIC)
 		Light.set_color_filter(light, Vector3(color[1], color[2], color[3]))
 	end
 
-	return { unit = unit, light = light, world = world, color = color }
+	return { unit = unit, light = light, world = world, color = color, height = height }
 end
 
 local function destroy_light(entry)
@@ -302,14 +318,17 @@ function Visuals.apply(go_id, ally_unit, ground_position, confidence)
 		if not mk then
 			local entry = { anchor_unit = ally_unit, confidence = confidence, data = { color = Marker.color_for(confidence) } }
 			_marker[go_id] = entry
-			Managers.event:trigger("add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
+
+			Marker.ensure_registered()
+
+			local ok = pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
 				entry.id = id
 			end, entry.data)
 
-			if entry.id then
+			if ok and entry.id then
 				Log.write("MARKER added (confidence=%s)", tostring(confidence))
 			else
-				Log.write("MARKER add FAILED (no id returned, template unresolved?)")
+				Log.write("MARKER add FAILED (ok=%s, template unresolved?)", tostring(ok))
 			end
 		elseif mk.anchor_unit ~= ally_unit then
 			if mk.id then
@@ -320,7 +339,10 @@ function Visuals.apply(go_id, ally_unit, ground_position, confidence)
 			mk.anchor_unit = ally_unit
 			mk.confidence = confidence
 			mk.data.color = Marker.color_for(confidence)
-			Managers.event:trigger("add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
+
+			Marker.ensure_registered()
+
+			pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE, ally_unit, function(id)
 				mk.id = id
 			end, mk.data)
 			Log.write("MARKER moved (retarget)")
@@ -381,6 +403,90 @@ function Visuals.apply(go_id, ally_unit, ground_position, confidence)
 				lt.color = want_color
 				Log.write("LIGHT recolour (confidence=%s)", tostring(confidence))
 			end
+		end
+	end
+end
+
+function Visuals.apply_hack(go_id, target_unit, ground_position)
+	if not target_unit or not ALIVE[target_unit] or not ground_position then
+		return
+	end
+
+	local cog = _cog[go_id]
+
+	if not cog then
+		local world = Unit.world(target_unit)
+
+		if world then
+			local particle_position = ground_position + Vector3.up() * HACK_TUNING.particle_height
+			local ok, id = pcall(World.create_particles, world, HACK_PARTICLE, particle_position)
+
+			if ok and id then
+				_cog[go_id] = {
+					ids = { id },
+					world = world,
+					particle_name = HACK_PARTICLE,
+					anchor_unit = target_unit,
+				}
+				Log.write("HACK particle created (%s)", HACK_PARTICLE)
+			else
+				Log.write("HACK particle create FAILED for %s (package not loaded?)", HACK_PARTICLE)
+			end
+		end
+	elseif cog.anchor_unit ~= target_unit then
+		move_cog_cone(cog.world, cog.ids, ground_position + Vector3.up() * HACK_TUNING.particle_height)
+		cog.anchor_unit = target_unit
+	end
+
+	if not Settings.get("hack_marker_enabled") then
+		return
+	end
+
+	local mk = _marker[go_id]
+
+	if not mk then
+		local entry = { anchor_unit = target_unit, data = { color = Marker.hack_color() } }
+		_marker[go_id] = entry
+
+		Marker.ensure_registered()
+
+		local ok = pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE_HACK, target_unit, function(id)
+			entry.id = id
+		end, entry.data)
+
+		Log.write(ok and "HACK marker added" or "HACK marker add FAILED (template not registered?)")
+	elseif mk.anchor_unit ~= target_unit then
+		if mk.id then
+			pcall(Managers.event.trigger, Managers.event, "remove_world_marker", mk.id)
+		end
+
+		mk.id = nil
+		mk.anchor_unit = target_unit
+
+		Marker.ensure_registered()
+
+		pcall(Managers.event.trigger, Managers.event, "add_world_marker_unit", Marker.TYPE_HACK, target_unit, function(id)
+			mk.id = id
+		end, mk.data)
+	end
+
+	if USE_HACK_LIGHT and LIGHT_SUPPORT then
+		local lt = _light[go_id]
+
+		if not lt then
+			lt = spawn_light(Unit.world(target_unit), ground_position, HACK_LIGHT_COLOR, HACK_TUNING)
+
+			if lt then
+				lt.anchor_unit = target_unit
+				_light[go_id] = lt
+			end
+		elseif lt.anchor_unit ~= target_unit then
+			if lt.unit and Unit.alive(lt.unit) then
+				Unit.set_local_position(lt.unit, 1, light_position(ground_position, lt.height))
+				World.update_unit(lt.world, lt.unit)
+			end
+
+			lt.anchor_unit = target_unit
 		end
 	end
 end

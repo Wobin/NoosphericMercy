@@ -12,12 +12,22 @@ return {
 				default_value = true,
 			},
 			{
+				setting_id = "broadcast_only_when_multiple",
+				type = "checkbox",
+				default_value = true,
+			},
+			{
 				setting_id = "show_others",
 				type = "checkbox",
 				default_value = true,
 			},
 			{
 				setting_id = "rescue_marker_enabled",
+				type = "checkbox",
+				default_value = true,
+			},
+			{
+				setting_id = "hack_marker_enabled",
 				type = "checkbox",
 				default_value = true,
 			},

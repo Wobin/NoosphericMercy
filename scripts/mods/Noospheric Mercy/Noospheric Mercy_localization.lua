@@ -11,6 +11,12 @@ return {
 		en = "Broadcast rescue in party chat",
 		["zh-cn"] = "小队频道播报救援目标",
 	},
+	broadcast_only_when_multiple = {
+		en = "Only broadcast when more than one player is down",
+	},
+	broadcast_only_when_multiple_description = {
+		en = "With a single player down the target is never ambiguous, so other players' mods already show the correct one. Leave this on to keep party chat quiet and only announce when it actually resolves a doubt.",
+	},
 	show_others = {
 		en = "Show rescues called by other players",
 		["zh-cn"] = "显示其他玩家释放的救援头骨",
@@ -18,6 +24,9 @@ return {
 	rescue_marker_enabled = {
 		en = "Show a marker over the rescue target",
 		["zh-cn"] = "在救援目标头顶显示标记",
+	},
+	hack_marker_enabled = {
+		en = "Show a marker over the servo skull's hacking target",
 	},
 	outline_priority = {
 		en = "Ally outline priority (lower wins)",

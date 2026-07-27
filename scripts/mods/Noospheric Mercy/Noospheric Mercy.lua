@@ -2,15 +2,16 @@
 	Name: Noospheric Mercy
 	Author: Wobin
 	URL: https://github.com/Wobin/NoosphericMercy
-	Date: 01/07/2026
-	Version: 1.1.2
+	Date: 27/07/2026
+	Version: 2.1.1
 ]]--
 
 local mod = get_mod("Noospheric Mercy")
-mod.version = "1.1.2"
+mod.version = "2.1.1"
 
 local Tracker = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/tracker")
 local TargetResolve = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/target_resolve")
+local HackTarget = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/hack_target")
 local Visuals = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/visuals")
 local Broadcast = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/broadcast")
 local ChatListen = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/chat_listen")
@@ -60,8 +61,14 @@ local function on_inject_ally(companion_unit, target_finder_component, position_
 		player_name_of(companion_unit), player_name_of(ally), tostring(is_server), tostring(firer_is_local))
 
 	if firer_is_local and not _broadcast_done[companion_unit] then
-		_broadcast_done[companion_unit] = true
-		Broadcast.rescue(ally)
+		local down_count = TargetResolve.count_needs_help()
+
+		if Settings.get("broadcast_only_when_multiple") and down_count < 2 then
+			Log.write("BROADCAST skipped: only %d player needs help (target is unambiguous)", down_count)
+		else
+			_broadcast_done[companion_unit] = true
+			Broadcast.rescue(ally)
+		end
 	end
 end
 
@@ -83,13 +90,36 @@ mod:hook_safe("ChatManager", "_handle_event", function(self, message)
 end)
 
 local _refresh_log = {}
+local _game_session = nil
 
-Tracker.on_start = function(go_id, skull_unit)
-	Log.write("RESCUE START skull go_id=%s firer=%s", tostring(go_id), player_name_of(skull_unit))
+local HACK_NODE = "targeting_rotation_node"
+
+Tracker.on_start = function(go_id, skull_unit, kind)
+	Log.write("%s START skull go_id=%s firer=%s",
+		kind == Tracker.KIND_HACK and "HACK" or "RESCUE", tostring(go_id), player_name_of(skull_unit))
 	Visuals.start(go_id)
 end
 
-Tracker.on_refresh = function(go_id, skull_unit, dt, t)
+Tracker.on_refresh = function(go_id, skull_unit, dt, t, kind)
+	if kind == Tracker.KIND_HACK then
+		local target = HackTarget.resolve(_game_session, go_id)
+
+		if not target then
+			if _refresh_log[go_id] ~= "hack_none" then
+				_refresh_log[go_id] = "hack_none"
+				Log.write("HACK skull go_id=%s -> no target", tostring(go_id))
+				Visuals.clear(go_id)
+			end
+
+			return
+		end
+
+		_refresh_log[go_id] = "hack"
+		Visuals.apply_hack(go_id, target, HackTarget.position_of(target, HACK_NODE))
+
+		return
+	end
+
 	local ally, confidence, locked, source = TargetResolve.resolve(go_id, skull_unit, dt)
 
 	if not ally then
@@ -114,13 +144,21 @@ Tracker.on_refresh = function(go_id, skull_unit, dt, t)
 	Visuals.apply(go_id, ally, TargetResolve.position_of(ally), confidence)
 end
 
-Tracker.on_end = function(go_id, skull_unit)
+Tracker.on_end = function(go_id, skull_unit, kind)
 	local t = Managers.time:time("gameplay")
 
-	Log.write("RESCUE END skull go_id=%s firer=%s", tostring(go_id), player_name_of(skull_unit))
+	Log.write("%s END skull go_id=%s firer=%s",
+		kind == Tracker.KIND_HACK and "HACK" or "RESCUE", tostring(go_id), player_name_of(skull_unit))
 	_refresh_log[go_id] = nil
-	_broadcast_done[skull_unit] = nil
 	Visuals.stop(go_id, t)
+
+	if kind == Tracker.KIND_HACK then
+		HackTarget.clear(go_id)
+
+		return
+	end
+
+	_broadcast_done[skull_unit] = nil
 	TargetResolve.clear(skull_unit)
 end
 
@@ -131,11 +169,13 @@ mod.update = function(dt)
 	if not is_in_mission() then
 		Tracker.reset()
 		Visuals.reset()
+		HackTarget.reset()
 
 		for skull in pairs(_broadcast_done) do
 			_broadcast_done[skull] = nil
 		end
 
+		_game_session = nil
 		_scan_accum = 0
 
 		return
@@ -157,6 +197,7 @@ mod.update = function(dt)
 
 	local t = time_manager:time("gameplay")
 
+	_game_session = game_session
 	_scan_accum = _scan_accum + dt
 
 	if _scan_accum >= SCAN_INTERVAL then
@@ -164,10 +205,7 @@ mod.update = function(dt)
 		_scan_accum = 0
 
 		TargetResolve.log_down_transitions()
-
-		if TargetResolve.any_needs_help() or next(Tracker.active) then
-			Tracker.update(elapsed, t, game_session)
-		end
+		Tracker.update(elapsed, t, game_session)
 	end
 
 	Visuals.update(t)

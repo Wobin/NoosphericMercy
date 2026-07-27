@@ -11,6 +11,10 @@ local GameSession = GameSession
 local SERVO_SKULL_BREED = "companion_servo_skull"
 
 local STATE_INJECT_ALLY = CompanionServoSkullSettings.STATES.inject_ally
+local STATE_HACKING = CompanionServoSkullSettings.STATES.hacking
+
+local KIND_RESCUE = "rescue"
+local KIND_HACK = "hack"
 
 local Tracker = {
 	active = {},
@@ -18,6 +22,21 @@ local Tracker = {
 	on_refresh = nil,
 	on_end = nil,
 }
+
+Tracker.KIND_RESCUE = KIND_RESCUE
+Tracker.KIND_HACK = KIND_HACK
+
+local function kind_for_state(state)
+	if state == STATE_INJECT_ALLY then
+		return KIND_RESCUE
+	end
+
+	if state == STATE_HACKING then
+		return KIND_HACK
+	end
+
+	return nil
+end
 
 local _logged_companion = {}
 local _logged_state = {}
@@ -58,32 +77,36 @@ function Tracker.update(dt, t, game_session)
 							local prev = _logged_state[go_id]
 							_logged_state[go_id] = state
 
-							if state == STATE_INJECT_ALLY or prev == STATE_INJECT_ALLY then
+							if kind_for_state(state) or kind_for_state(prev) then
 								Log.write("SKULL owner=%s go_id=%s state=%s", (player.name and player:name()) or "?", tostring(go_id), tostring(state))
 							end
 						end
 
 						local entry = active[go_id]
+						local kind = kind_for_state(state)
 
-						if state == STATE_INJECT_ALLY then
+						if entry and entry.kind ~= kind then
+							if Tracker.on_end then
+								Tracker.on_end(go_id, entry.skull_unit, entry.kind)
+							end
+
+							active[go_id] = nil
+							entry = nil
+						end
+
+						if kind then
 							if not entry then
-								entry = { skull_unit = skull, started_t = t }
+								entry = { skull_unit = skull, started_t = t, kind = kind }
 								active[go_id] = entry
 
 								if Tracker.on_start then
-									Tracker.on_start(go_id, skull)
+									Tracker.on_start(go_id, skull, kind)
 								end
 							end
 
 							if Tracker.on_refresh then
-								Tracker.on_refresh(go_id, skull, dt, t)
+								Tracker.on_refresh(go_id, skull, dt, t, kind)
 							end
-						elseif entry then
-							if Tracker.on_end then
-								Tracker.on_end(go_id, entry.skull_unit)
-							end
-
-							active[go_id] = nil
 						end
 					end
 				end
@@ -94,7 +117,7 @@ function Tracker.update(dt, t, game_session)
 	for go_id, entry in pairs(active) do
 		if not ALIVE[entry.skull_unit] then
 			if Tracker.on_end then
-				Tracker.on_end(go_id, entry.skull_unit)
+				Tracker.on_end(go_id, entry.skull_unit, entry.kind)
 			end
 
 			active[go_id] = nil

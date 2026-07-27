@@ -47,19 +47,21 @@ local function help_status(unit)
 	local character_state_component = unit_data_extension and unit_data_extension:read_component("character_state")
 
 	if not character_state_component then
-		return false, false
+		return false, false, false
 	end
 
 	local needs = PlayerUnitStatus.requires_allied_interaction_help(character_state_component)
 	local ledge = PlayerUnitStatus.is_ledge_hanging(character_state_component)
+	local assisted_state_input_component = unit_data_extension:read_component("assisted_state_input")
+	local assisted = assisted_state_input_component ~= nil and PlayerUnitStatus.is_assisted(assisted_state_input_component) or false
 
-	return needs, ledge
+	return needs, ledge, assisted
 end
 
 local function requires_help(unit)
-	local needs, ledge = help_status(unit)
+	local needs, ledge, assisted = help_status(unit)
 
-	return needs and not ledge
+	return needs and not ledge and not assisted
 end
 
 local _down_logged = {}
@@ -75,7 +77,7 @@ function TargetResolve.log_down_transitions()
 		local unit = player.player_unit
 
 		if unit and ALIVE[unit] then
-			local needs, ledge = help_status(unit)
+			local needs, ledge, assisted = help_status(unit)
 
 			if needs then
 				seen[unit] = true
@@ -84,7 +86,8 @@ function TargetResolve.log_down_transitions()
 					_down_logged[unit] = true
 
 					local who = (player.name and player:name()) or tostring(unit)
-					Log.write("DOWN player=%s requires help (ledge_hang=%s, skull_rescuable=%s)", who, tostring(ledge), tostring(not ledge))
+					Log.write("DOWN player=%s requires help (ledge_hang=%s, being_assisted=%s, skull_rescuable=%s)",
+						who, tostring(ledge), tostring(assisted), tostring(not ledge and not assisted))
 				end
 			end
 		end
@@ -96,6 +99,20 @@ function TargetResolve.log_down_transitions()
 			Log.write("RECOVERED player=%s no longer requires help", name_of(unit))
 		end
 	end
+end
+
+function TargetResolve.count_needs_help()
+	local count = 0
+
+	for _, player in pairs(Managers.player:players()) do
+		local unit = player.player_unit
+
+		if unit and ALIVE[unit] and requires_help(unit) then
+			count = count + 1
+		end
+	end
+
+	return count
 end
 
 function TargetResolve.any_needs_help()

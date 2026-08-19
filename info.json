@@ -1,7 +1,23 @@
 {
-  "order": {
-    "require": [],
-    "this_after": [],
-    "this_before": []
-  }
+	"name": "Noospheric Mercy",
+	"description": "Keeps the medicae servo skull's cogwheel and ally outline visible while it travels to and restores a downed teammate. Spectators see it too; party-chat broadcast keeps the target exact across mod users.",
+	"version": "2.3.1",
+	"author": "Wobin",
+	"homepage": "https://www.nexusmods.com/warhammer40kdarktide/mods/974",
+	"source": "https://github.com/Wobin/NoosphericMercy",
+	"funding": {
+		"kofi": "https://ko-fi.com/wobin_dwonderdog"
+	},
+	"nexusId": "974",
+	"localization": {
+		"zh-cn": {
+			"name": "救援提示",
+			"description": "治疗伺服头骨飞向并救援倒地队友期间，持续显示齿轮标识与队友高亮轮廓。观战玩家同样可见；小队频道同步播报，所有安装本模组的玩家显示目标完全一致。"
+		}
+	},
+	"order": {
+		"require": [],
+		"this_after": [],
+		"this_before": []
+	}
 }

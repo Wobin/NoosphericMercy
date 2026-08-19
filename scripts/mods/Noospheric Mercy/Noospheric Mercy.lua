@@ -2,12 +2,11 @@
 	Name: Noospheric Mercy
 	Author: Wobin
 	URL: https://github.com/Wobin/NoosphericMercy
-	Date: 27/07/2026
-	Version: 2.2.0
+	Date: 20/08/2026
 ]]--
 
 local mod = get_mod("Noospheric Mercy")
-mod.version = "2.2.0"
+mod.version = mod.get_metadata and mod:get_metadata("version") or "unknown"
 
 local Tracker = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/tracker")
 local TargetResolve = mod:io_dofile("Noospheric Mercy/scripts/mods/Noospheric Mercy/modules/target_resolve")
@@ -237,6 +236,10 @@ mod.on_setting_changed = function(setting_id)
 	Visuals.refresh_outline_priority()
 end
 
+
+mod.on_settings_reset = function()
+	mod.on_setting_changed()
+end
 mod.on_unload = function()
 	Visuals.cleanup_all()
 end
